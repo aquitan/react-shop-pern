@@ -1,17 +1,28 @@
-const { Device } = require("../models/models")
+const { Device, DeviceInfo } = require("../models/models")
 const { v4 } = require('uuid')
 const path = require('path')
 const ApiError = require("../error/ApiError")
 
 const createDevice = (async (req, res, next) => {
 	try {
-		const { name, price, brandId, typeId, info } = req.body
+		let { name, price, brandId, typeId, info } = req.body
 		const { img } = req.files
 
 		let fileName = v4() + ".jpg"
 		img.mv(path.resolve(__dirname, '..', 'static', fileName))
 
-		const device = await Device.create({ name, price, brandId, typeId, info, img: fileName })
+		const device = await Device.create({ name, price, brandId, typeId, img: fileName })
+
+		if (info) {
+			info = JSON.parse(info)
+			info.forEach(i => {
+				DeviceInfo.create({
+					title: i.title,
+					description: i.description,
+					deviceId: device.id
+				})
+			})
+		}
 
 		return res.json(device)
 	} catch (e) {
@@ -21,15 +32,47 @@ const createDevice = (async (req, res, next) => {
 })
 
 const getAllDevices = (async (req, res) => {
-	const devices = await Device.findAll()
+	let { brandId, typeId, page, limit } = req.query
+
+	page = page || 1
+
+	limit = limit || 9
+
+	let offset = page * limit - limit
+
+	let devices;
+
+	if (!brandId && !typeId) {
+		devices = await Device.findAndCountAll({ page, offset })
+	}
+
+	if (brandId && !typeId) {
+		devices = await Device.findAndCountAll({ where: { brandId }, page, offset })
+	}
+	if (!brandId && typeId) {
+		devices = await Device.findAndCountAll({ where: { typeId }, page, offset })
+	}
+	if (brandId && typeId) {
+		devices = await Device.findAndCountAll({ where: { brandId, typeId }, page, offset })
+	}
+
 
 	return res.status(200).json(devices)
+
+
+
+
 })
 
 const getDevice = (async (req, res) => {
-	const { id } = req.body
+	const { id } = req.params
 
-	const device = await Device.findOne({ id })
+	const device = await Device.findOne(
+		{
+			where: { id },
+			include: [{ model: DeviceInfo, as: 'info' }]
+		}
+	)
 
 	return res.status(200).json(device)
 
