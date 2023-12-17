@@ -57,11 +57,7 @@ const getAllDevices = (async (req, res) => {
 	}
 
 
-	return res.status(200).json(devices)
-
-
-
-
+	return res.status(200).json({ devices })
 })
 
 const getDevice = (async (req, res) => {
@@ -78,4 +74,20 @@ const getDevice = (async (req, res) => {
 
 })
 
-module.exports = { createDevice, getAllDevices, getDevice };
+const deleteDevice = (async (req, res) => {
+	const { id } = req.params
+
+	const device = await Device.destroy(
+		{
+			where: { id },
+			include: [{ model: DeviceInfo, as: 'info' }]
+		}
+	)
+
+
+
+	return res.status(200).json({ message: "deleted" })
+
+})
+
+module.exports = { createDevice, getAllDevices, getDevice, deleteDevice };
